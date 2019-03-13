@@ -34,6 +34,7 @@
 #include <ros/assert.h>
 #include "stereo_image_proc/processor.h"
 #include <sensor_msgs/image_encodings.h>
+#include <opencv2/opencv.hpp>
 #include <cmath>
 #include <limits>
 
@@ -110,7 +111,9 @@ void StereoProcessor::processDisparity(const cv::Mat& left_rect, const cv::Mat& 
   cv::Mat_<float> dmat(dimage.height, dimage.width, (float*)&dimage.data[0], dimage.step);
   // We convert from fixed-point to float disparity and also adjust for any x-offset between
   // the principal points: d = d_fp*inv_dpp - (cx_l - cx_r)
-  disparity16_.convertTo(dmat, dmat.type(), inv_dpp, -(model.left().cx() - model.right().cx()));
+  int cx_diff = (model.left().cx() - model.right().cx());
+  disparity16_.convertTo(dmat, dmat.type(), inv_dpp);
+
   ROS_ASSERT(dmat.data == &dimage.data[0]);
   /// @todo is_bigendian? :)
 

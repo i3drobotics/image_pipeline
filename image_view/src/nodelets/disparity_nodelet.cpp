@@ -35,7 +35,7 @@
 #include <nodelet/nodelet.h>
 #include <sensor_msgs/image_encodings.h>
 #include <stereo_msgs/DisparityImage.h>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
 #include "window_thread.h"
 
 #ifdef HAVE_GTK
@@ -140,25 +140,33 @@ void DisparityNodelet::imageCb(const stereo_msgs::DisparityImageConstPtr& msg)
     initialized = true;
   }
   // Colormap and display the disparity image
-  float min_disparity = msg->min_disparity;
-  float max_disparity = msg->max_disparity;
-  float multiplier = 255.0f / (max_disparity - min_disparity);
-
-  const cv::Mat_<float> dmat(msg->image.height, msg->image.width,
+  cv::Mat input_disparity(msg->image.height, msg->image.width, CV_32FC1,
                              (float*)&msg->image.data[0], msg->image.step);
-  disparity_color_.create(msg->image.height, msg->image.width);
-    
-  for (int row = 0; row < disparity_color_.rows; ++row) {
-    const float* d = dmat[row];
-    cv::Vec3b *disparity_color = disparity_color_[row],
-              *disparity_color_end = disparity_color + disparity_color_.cols;
-    for (; disparity_color < disparity_color_end; ++disparity_color, ++d) {
-      int index = (*d - min_disparity) * multiplier + 0.5;
-      index = std::min(255, std::max(0, index));
-      // Fill as BGR
-      (*disparity_color)[2] = colormap[3*index + 0];
-      (*disparity_color)[1] = colormap[3*index + 1];
-      (*disparity_color)[0] = colormap[3*index + 2];
+  
+  // Shift to get rid of large offsets.
+  double mindisp, maxdisp;
+  cv::minMaxIdx(input_disparity, &mindisp, &maxdisp);
+  input_disparity -= mindisp;
+
+  double disparity_range = msg->max_disparity -  msg->min_disparity;
+
+  // Disparity range should be fixed at least
+  double multiplier = 255.0f / disparity_range;
+  input_disparity *= multiplier;
+
+  input_disparity.convertTo(input_disparity, CV_8UC1);
+
+  cv::Mat output;
+
+  cv::applyColorMap(input_disparity, output, cv::COLORMAP_JET);
+
+  for(int x=0; x < output.cols; x++){
+    for(int y=0; y < output.rows; y++){
+      cv::Point coord(x, y);
+
+      if(input_disparity.at<uchar>(coord) != 0) continue;
+
+      output.at<cv::Vec3b>(coord) = cv::Vec3b(0,0,0);
     }
   }
 
@@ -166,10 +174,9 @@ void DisparityNodelet::imageCb(const stereo_msgs::DisparityImageConstPtr& msg)
 #if 0
   sensor_msgs::RegionOfInterest valid = msg->valid_window;
   cv::Point tl(valid.x_offset, valid.y_offset), br(valid.x_offset + valid.width, valid.y_offset + valid.height);
-  cv::rectangle(disparity_color_, tl, br, CV_RGB(255,0,0), 1);
 #endif
 
-  cv::imshow(window_name_, disparity_color_);
+  cv::imshow(window_name_, output);
   cv::waitKey(10);
 }
 

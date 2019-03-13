@@ -115,6 +115,8 @@ void DisparityNodelet::onInit()
   private_nh.param("approximate_sync", approx, false);
   if (approx)
   {
+
+    ROS_INFO("Approximate sync");
     approximate_sync_.reset( new ApproximateSync(ApproximatePolicy(queue_size),
                                                  sub_l_image_, sub_l_info_,
                                                  sub_r_image_, sub_r_info_) );
@@ -123,6 +125,7 @@ void DisparityNodelet::onInit()
   }
   else
   {
+     ROS_INFO("Exact sync");
     exact_sync_.reset( new ExactSync(ExactPolicy(queue_size),
                                      sub_l_image_, sub_l_info_,
                                      sub_r_image_, sub_r_info_) );
@@ -198,16 +201,6 @@ void DisparityNodelet::imageCb(const ImageConstPtr& l_image_msg,
 
   // Perform block matching to find the disparities
   block_matcher_.processDisparity(l_image, r_image, model_, *disp_msg);
-
-  // Adjust for any x-offset between the principal points: d' = d - (cx_l - cx_r)
-  double cx_l = model_.left().cx();
-  double cx_r = model_.right().cx();
-  if (cx_l != cx_r) {
-    cv::Mat_<float> disp_image(disp_msg->image.height, disp_msg->image.width,
-                              reinterpret_cast<float*>(&disp_msg->image.data[0]),
-                              disp_msg->image.step);
-    cv::subtract(disp_image, cv::Scalar(cx_l - cx_r), disp_image);
-  }
 
   pub_disparity_.publish(disp_msg);
 }
