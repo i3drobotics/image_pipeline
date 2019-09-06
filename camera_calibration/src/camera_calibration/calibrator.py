@@ -303,7 +303,7 @@ class Calibrator(object):
         d = min([param_distance(params, p) for p in db_params])
         #print "d = %.3f" % d #DEBUG
         # TODO What's a good threshold here? Should it be configurable?
-        return d > 0.2
+        return d > 0.3
 
     _param_names = ["X", "Y", "Size", "Skew"]
 
