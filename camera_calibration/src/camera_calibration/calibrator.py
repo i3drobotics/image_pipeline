@@ -325,7 +325,8 @@ class Calibrator(object):
         progress = [min((hi - lo) / r, 1.0) for (lo, hi, r) in zip(min_params, max_params, self.param_ranges)]
         # If we have lots of samples, allow calibration even if not all parameters are green
         # TODO Awkward that we update self.goodenough instead of returning it
-        self.goodenough = (len(self.db) >= 40) or all([p == 1.0 for p in progress])
+        goodEnoughDbSize = 1 # Default: 40
+        self.goodenough = (len(self.db) >= goodEnoughDbSize) or all([p == 1.0 for p in progress])
 
         return list(zip(self._param_names, min_params, max_params, progress))
 
